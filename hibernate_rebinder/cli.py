@@ -1,6 +1,8 @@
 import click
 import re
 
+import collections
+
 
 class RebindableQuery:
     """
@@ -9,7 +11,7 @@ class RebindableQuery:
 
     def __init__(self, query):
         self._query = query
-        self._params = []
+        self._params = {}
 
     def insert_param(self, position, param, sql_type):
         """
@@ -18,7 +20,7 @@ class RebindableQuery:
         :param param: parameter value
         :param sql_type: for proper type rebinding
         """
-        self._params.insert(int(position), BindableParam(param, sql_type))
+        self._params[int(position)] = BindableParam(param, sql_type)
 
     def bind(self):
         """
@@ -28,17 +30,28 @@ class RebindableQuery:
 
         # Loop through paramList and replace each question mark
         binded_query = self._query
-        for param in self._params:
-            val = param.val
+
+        # Create ordered dict using params.
+        sorted_params = collections.OrderedDict(sorted(self._params.items()))
+        for position in sorted_params:
+            # Get the bindable param object
+            param = sorted_params[position]
+
             # Null edge case.
-            if val == '<null>':
-                val = "NULL"
+            if param.val == '<null>':
+                rebinded_val = "NULL"
             # Determine if value should be enclosed in quotes.
             elif param.sql_type in ['VARCHAR', 'DATETIME', 'TIMESTAMP']:
-                val = '"' + val + '"'
+                rebinded_val = '"' + param.val + '"'
+            # Boolean maps to 0/1
             elif param.sql_type == 'BOOLEAN':
-                val = 1 if param.val is 'true' else 0
-            binded_query = binded_query.replace('?', str(val), 1)
+                rebinded_val = 1 if param.val is 'true' else 0
+            # Default
+            else:
+                rebinded_val = param.val
+
+            # Replace one question mark at a time
+            binded_query = binded_query.replace('?', str(rebinded_val), 1)
         return binded_query
 
 
@@ -62,7 +75,7 @@ def main(filename):
         queries = []
         for line in fp:
             # Determine if this line is a query or a param
-            if line.startswith(('select', 'insert', 'update', 'delete')):
+            if line.lower().startswith(('select', 'insert', 'update', 'delete')):
                 queries.append(RebindableQuery(line))
             elif line.startswith('binding parameter'):
                 # Pull out relevant info: position, type, value
