@@ -78,12 +78,14 @@ def main(filename):
             if line.lower().startswith(('select', 'insert', 'update', 'delete')):
                 queries.append(RebindableQuery(line))
             elif line.startswith('binding parameter'):
-                # Pull out relevant info: position, type, value
-                position = re.search('(\d+)|$', line).group(1)
-                sql_type = re.search('\[(\D+)\]', line).group(1)
-                param = line.split('-', 1)[1].strip()
-                # Add the parameter to the last entry in the query list
-                queries[-1].insert_param(position, param, sql_type)
+                # Make sure we have a query that we can bind these parameters to
+                if len(queries) > 0:
+                    # Pull out relevant info: position, type, value
+                    position = re.search('(\d+)|$', line).group(1)
+                    sql_type = re.search('\[(\D+)\]', line).group(1)
+                    param = line.split('-', 1)[1].strip()
+                    # Add the parameter to the last entry in the query list
+                    queries[-1].insert_param(position, param, sql_type)
 
         # Perform the binding
         for query in queries:
