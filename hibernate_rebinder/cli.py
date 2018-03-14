@@ -45,7 +45,7 @@ class RebindableQuery:
                 rebinded_val = '"' + param.val + '"'
             # Boolean maps to 0/1
             elif param.sql_type == 'BOOLEAN':
-                rebinded_val = 1 if param.val is 'true' else 0
+                rebinded_val = 1 if param.val.lower() is 'true' else 0
             # Default
             else:
                 rebinded_val = param.val
